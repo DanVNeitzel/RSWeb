@@ -1,0 +1,183 @@
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jogo Estilo Runescape - Batalha e Profissões</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f9;
+      color: #333;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background-color: #0078d7;
+      color: white;
+      text-align: center;
+      padding: 1em;
+    }
+    main {
+      padding: 1em;
+    }
+    .section {
+      margin-bottom: 2em;
+    }
+    .button {
+      background-color: #0078d7;
+      color: white;
+      padding: 0.5em 1em;
+      border: none;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+    .button:hover {
+      background-color: #005a9e;
+    }
+    .log {
+      background-color: #e8e8e8;
+      padding: 1em;
+      border-radius: 5px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Jogo Estilo Runescape</h1>
+  </header>
+  <main>
+    <section id="player-info" class="section">
+      <h2>Informações do Jogador</h2>
+      <div id="stats"></div>
+    </section>
+
+    <section id="professions" class="section">
+      <h2>Profissões</h2>
+      <button class="button" onclick="trainProfession('mining')">Treinar Mineração</button>
+      <button class="button" onclick="trainProfession('woodcutting')">Treinar Corte de Madeira</button>
+      <button class="button" onclick="trainProfession('fishing')">Treinar Pesca</button>
+      <button class="button" onclick="trainProfession('cooking')">Treinar Culinária</button>
+    </section>
+
+    <section id="battle" class="section">
+      <h2>Batalha</h2>
+      <button class="button" onclick="startBattle('Goblin')">Lutar contra Goblin</button>
+      <button class="button" onclick="startBattle('Troll')">Lutar contra Troll</button>
+      <div id="current-battle" style="margin-top: 1em;"></div>
+    </section>
+
+    <section id="log" class="section">
+      <h2>Registro do Jogo</h2>
+      <div class="log" id="game-log"></div>
+    </section>
+  </main>
+  <script>
+    const player = {
+      name: "Jogador",
+      hitpoints: 100,
+      attack: 10,
+      defense: 5,
+      gold: 0,
+      experience: 0,
+      professions: {
+        mining: { level: 1, exp: 0 },
+        woodcutting: { level: 1, exp: 0 },
+        fishing: { level: 1, exp: 0 },
+        cooking: { level: 1, exp: 0 }
+      }
+    };
+
+    const expTable = [0, 83, 174, 276, 388, 512, 650, 801, 969, 1154, 1358]; // Simplified XP table
+
+    let currentMonster = null;
+
+    async function loadMonsters() {
+      const response = await fetch("monsters.json");
+      return response.json();
+    }
+
+    function logMessage(message) {
+      const log = document.getElementById("game-log");
+      log.innerHTML += `<p>${message}</p>`;
+      log.scrollTop = log.scrollHeight;
+    }
+
+    function updateStats() {
+      const statsDiv = document.getElementById("stats");
+      statsDiv.innerHTML = `
+        <p>Nome: ${player.name}</p>
+        <p>Pontos de Vida: ${player.hitpoints}</p>
+        <p>Ataque: ${player.attack}</p>
+        <p>Defesa: ${player.defense}</p>
+        <p>Ouro: ${player.gold}</p>
+        <p>Experiência: ${player.experience}</p>
+        <h3>Profissões</h3>
+        <p>Mineração: Nível ${player.professions.mining.level} (${player.professions.mining.exp} XP)</p>
+        <p>Corte de Madeira: Nível ${player.professions.woodcutting.level} (${player.professions.woodcutting.exp} XP)</p>
+        <p>Pesca: Nível ${player.professions.fishing.level} (${player.professions.fishing.exp} XP)</p>
+        <p>Culinária: Nível ${player.professions.cooking.level} (${player.professions.cooking.exp} XP)</p>
+      `;
+    }
+
+    function trainProfession(profession) {
+      const prof = player.professions[profession];
+      prof.exp += 100; // Fixed XP gain for simplicity
+      logMessage(`Você ganhou 100 XP em ${profession}!`);
+
+      // Check for level up
+      if (prof.level < expTable.length - 1 && prof.exp >= expTable[prof.level + 1]) {
+        prof.level++;
+        logMessage(`Você subiu para o nível ${prof.level} em ${profession}!`);
+      }
+
+      updateStats();
+    }
+
+    async function startBattle(monsterName) {
+      const monsters = await loadMonsters();
+      currentMonster = monsters.find(m => m.name === monsterName);
+
+      if (!currentMonster) {
+        logMessage("Monstro não encontrado!");
+        return;
+      }
+
+      logMessage(`Você iniciou uma batalha contra ${currentMonster.name}!`);
+      battleTurn();
+    }
+
+    function battleTurn() {
+      if (!currentMonster) return;
+
+      const playerDamage = Math.max(0, player.attack - currentMonster.defense);
+      const monsterDamage = Math.max(0, currentMonster.attack - player.defense);
+
+      currentMonster.hitpoints -= playerDamage;
+      logMessage(`Você causou ${playerDamage} de dano em ${currentMonster.name}.`);
+
+      if (currentMonster.hitpoints <= 0) {
+        logMessage(`Você derrotou ${currentMonster.name}!`);
+        player.experience += currentMonster.experience;
+        player.gold += currentMonster.goldDrop;
+        currentMonster = null;
+        updateStats();
+        return;
+      }
+
+      player.hitpoints -= monsterDamage;
+      logMessage(`${currentMonster.name} causou ${monsterDamage} de dano em você.`);
+
+      if (player.hitpoints <= 0) {
+        logMessage("Você foi derrotado! Fim de jogo.");
+        return;
+      }
+
+      setTimeout(battleTurn, 1000);
+    }
+
+    updateStats();
+  </script>
+</body>
+</html>
